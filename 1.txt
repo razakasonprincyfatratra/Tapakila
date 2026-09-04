@@ -1,0 +1,9 @@
+Selection de zones avant configuration de billet par l organisateur
+Permettre au organisateur de condulter les billets vendus et les places vendus et les billets et places restants(ajouter un seul de notification pour l organisateur pour faire ses suivis )
+Permettre au organisateur d'annuler des évènements avec motif
+Partie Réservation/Code Promo
+Paramétrage de Code promo: nom code promo, description, valeur en pourcentage  (misy expiration ex nb de billet ou lany date)
+Personnaliser ny Qrcode , mettre le logo d'efaina dans Qrcode générer
+Permettre la création des gpe d évènement comme les festival qui peut durer de nbreuse jours donc avoir des billets pour chaque jours, et aussi un autre type de badge valable pour tout le festival 
+Permettre un système de tombola avec les numéros de billets (C'est l'organisateur qui voit la méthode)
+Permettr

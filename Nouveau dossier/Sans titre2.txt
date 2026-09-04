@@ -1,0 +1,157 @@
+
+Importez les conversations et les projets de votre compte personnel dans DevMada.
+Claude a terminé la réponse.
+
+Diagnosed data inconsistencies and architected automated verification script
+Diagnosed data inconsistencies and architected automated verification script
+Alignement confirmé et committé. Les 10 lignes 26-35 sont homogènes : categorie='contrat_commercial', nature_document='contrat', type_document='docx', et les nb_champs sont identiques avant/après (37, 47, 45, 36, 27 pour 26-30) — champs_formulaire n'a pas bougé, MD5 à l'appui. Items officiels 1-10 du CDC : intégrés et cohérents.
+
+Votre sortie de verif_templates.py révèle en revanche trois incohérences du même genre, qu'il vaut mieux traiter maintenant qu'après avoir empilé 30 templates de plus.
+
+1. type_document a deux sémantiques en base. Les id 3 et 4 portent type_document='attestation', là où 26-35 portent 'docx'. Ce champ mélange donc format d'export et nature de document. Comme le bouton PDF/DOCX de GeneratePage.jsx écrit dans ce même champ, la valeur 'attestation' serait écrasée à la première génération. nature_document existe déjà pour porter la nature — il faut trancher : type_document = format uniquement, et rien d'autre.
+
+2. La bibliothèque de blocs contient 13 entrées au lieu des 11 canoniques, avec une catégorie triplement nommée :
+
+Anomalie	Détail
+Doublon probable	clause_confidentialite coexiste avec confidentialite_standard et confidentialite_renforcee
+Hors liste canonique	propriete_intellectuelle_conjointe (à côté de propriete_intellectuelle)
+Catégories divergentes	clause_generale (8 blocs), commun (4), contrat_commercial (1) — trois libellés pour deux intentions
+Si un template référence {{bloc:clause_confidentialite}} et un autre {{bloc:confidentialite_standard}}, la clause rendue diffère d'un contrat à l'autre sans raison métier.
+
+3. Templates de test résiduels (id 1, 3, 4, 6, 7) : categorie et nature_document à NULL, nb_champs=0, mais actif=True. Ils apparaissent donc dans la liste côté React et retombent en mode texte libre dégradé. À désactiver avant la soutenance.
+
+Prochaine étape que je recommande, avant le lot 11-20
+Un audit de résolution : vérifier que chaque {{bloc:nom}} présent dans les 10 templates existe bien en base, et que chaque variable du contenu figure dans champs_formulaire (et inversement). C'est exactement la classe de bug duree que vous avez rencontrée — autant la détecter sur les 10 d'un coup plutôt qu'à l'usage.
+
+Ce script n'a besoin d'aucun upload, il lit tout depuis la base. Il introspecte information_schema pour trouver la colonne de contenu et détecte automatiquement la clé de nom dans champs_formulaire, donc il ne dépend pas de suppositions de ma part sur votre schéma.
+
+
+Refined duplicate detection logic by normalizing variable names
+Refined duplicate detection logic by normalizing variable names
+Un point à corriger dans la détection de doublons — telle quelle, elle ne rapprocherait pas clause_confidentialite de confidentialite_standard, alors que c'est justement le cas qui m'intéresse :
+
+
+Fichier modifié, a exécuté une commande, lu un fichier
+Fichier modifié, a exécuté une commande, lu un fichier
+Testé sur vos 13 blocs réels, il isole bien les deux familles suspectes : clause_confidentialite ↔ confidentialite_standard ↔ confidentialite_renforcee, et propriete_intellectuelle ↔ propriete_intellectuelle_conjointe. L'extraction distingue correctement {{bloc:x}}, {{variable}}, {{ if ... }} et les expressions calculées.
+
+powershell
+python .\audit_blocs_variables.py
+Aucun UPDATE, aucun COMMIT — lecture seule, vous pouvez le lancer sans précaution.
+
+Il va vous dire, pour chacun des 10 templates : les blocs référencés mais absents de la base (la clause disparaît silencieusement du document généré), les variables du contenu absentes de champs_formulaire (le placeholder reste brut dans le .docx livré au client), et les champs de formulaire jamais utilisés dans le contenu — c'est-à-dire le cas duree, mais détecté sur les 10 d'un coup au lieu d'être découvert à l'usage.
+
+Collez-moi la sortie. Selon ce qu'elle donne :
+
+0 anomalie → on enchaîne directement sur le lot 11-20 (RH : CDI, CDD, alternance, intérim, avenant), en reprenant integration_db_06_10_v2.py comme patron.
+des anomalies → on les corrige d'abord, parce que le patron d'intégration sera recopié 30 fois et reproduirait les mêmes erreurs à chaque lot.
+Dites-moi aussi ce que vous voulez faire des trois points relevés plus haut — les templates de test 1/3/4/6/7 encore actifs, la sémantique de type_document, et les doublons de blocs. Le premier est un UPDATE templates SET actif = false de trois secondes ; les deux autres méritent une décision de votre part avant que je touche à quoi que ce soit.
+
+
+Audit blocs variables
+PY 
+
+Sans titre.txt
+49 lignes
+
+txt
+
+Oui,desactive les templates résudus
+
+
+Orchestrated deactivation script sans hardcoded identifiers
+Orchestrated deactivation script sans hardcoded identifiers
+Je le fais. Deux précautions dans le script : il ne cible pas les id en dur, il détecte le profil résiduel (categorie ou nature_document à NULL et champs_formulaire vide et actif = true), et il refuse de s'exécuter si un template ayant une categorie renseignée tombe dans la sélection. Impossible qu'il désactive un de vos 10 templates intégrés par erreur.
+
+C'est une désactivation, pas une suppression : actif = false, les lignes restent en base et les documents déjà générés qui les référencent ne sont pas affectés.
+
+
+Identifiés et corrigés les problèmes d'échappement de caractères
+Identifiés et corrigés les problèmes d'échappement de caractères
+Un détail à corriger — mes docstrings contiennent des chemins PowerShell .\fichier.py, et Python interprète \a, \v, \d comme des séquences d'échappement. Ça n'affecte pas l'exécution mais ça produit un warning et insère des caractères parasites. Je passe les docstrings en chaînes brutes, dans les trois scripts :
+
+
+A exécuté une commande, lu un fichier
+A exécuté une commande, lu un fichier
+Le nouveau script en premier ; les deux autres sont les versions corrigées des précédents (docstring uniquement, la logique est inchangée — vous pouvez remplacer les fichiers sans rien réexécuter).
+
+powershell
+python .\desactiver_templates_residuels.py --dry-run
+python .\desactiver_templates_residuels.py
+Ce qu'il fait, dans l'ordre : inventaire complet des 15 templates → sélection par profil résiduel (devrait donner exactement 1, 3, 4, 6, 7) → quatre garde-fous → décompte des documents rattachés à titre informatif → UPDATE actif = false → contrôle que 26-35 sont toujours actifs → état final des templates visibles côté React.
+
+À la fin, il vous imprime la requête exacte de retour en arrière avec les id concernés, au cas où l'un de ces templates servirait encore à un test dont vous vous souviendriez après coup.
+
+Deux choses restent en attente de votre côté :
+
+L'audit. audit_blocs_variables.py n'a pas encore tourné — vous m'avez renvoyé mon message plutôt que sa sortie. C'est lui qui détermine si on enchaîne sur le lot 11-20 ou si on corrige d'abord. Lancez-le après la désactivation, l'inventaire sera plus lisible.
+
+Les deux décisions de fond, sur lesquelles je ne touche à rien sans votre arbitrage :
+
+type_document — le réserver au format d'export (pdf/docx) et rien d'autre ? Si oui, les valeurs 'attestation' des id 3/4 disparaissent d'elles-mêmes avec la désactivation, mais il faudra une contrainte CHECK pour empêcher que ça recommence.
+Les blocs en doublon — quel nom canonique gardez-vous pour la confidentialité, et propriete_intellectuelle_conjointe est-il une vraie variante métier ou un doublon ? L'audit vous dira lesquels sont réellement référencés par les templates, ce qui devrait rendre la décision évidente.
+
+Desactiver templates residuels
+PY 
+
+Audit blocs variables
+PY 
+
+Align templates 26 30
+PY 
+
+
+Souhaitez-vous être averti lorsque Claude répond ?
+
+
+
+
+
+Claude est une IA et peut faire des erreurs. Veuillez vérifier les réponses.
+
+NB:Voila ma discussion avec un claude pro et je souhaite qu on va continuer car c est comme meme nous qui avons commencer ce projet docgen.
+
+
+
+
+(venv) PS C:\Users\BENZEMA09\docgen\backend> python .\desactiver_templates_residuels.py --dry-run
+
+=== INVENTAIRE COMPLET DES TEMPLATES ===
+
+ERREUR - transaction annulee (ROLLBACK) : ERREUR:  la colonne « actif » n'existe pas
+LINE 2: ...id, titre, categorie, nature_document, type_document, actif,
+                                                     
+            ^
+
+Traceback (most recent call last):
+  File "C:\Users\BENZEMA09\docgen\backend\desactiver_templates_residuels.py", line 323, in <module>       
+    main()
+  File "C:\Users\BENZEMA09\docgen\backend\desactiver_templates_residuels.py", line 128, in main
+    cur.execute(
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « actif » n'existe pas
+LINE 2: ...id, titre, categorie, nature_document, type_document, actif,
+                                                     
+            ^
+
+(venv) PS C:\Users\BENZEMA09\docgen\backend> python .\desactiver_templates_residuels.py
+
+=== INVENTAIRE COMPLET DES TEMPLATES ===
+
+ERREUR - transaction annulee (ROLLBACK) : ERREUR:  la colonne « actif » n'existe pas
+LINE 2: ...id, titre, categorie, nature_document, type_document, actif,
+                                                     
+            ^
+
+Traceback (most recent call last):
+  File "C:\Users\BENZEMA09\docgen\backend\desactiver_templates_residuels.py", line 323, in <module>       
+    main()
+  File "C:\Users\BENZEMA09\docgen\backend\desactiver_templates_residuels.py", line 128, in main
+    cur.execute(
+psycopg2.errors.UndefinedColumn: ERREUR:  la colonne « actif » n'existe pas
+LINE 2: ...id, titre, categorie, nature_document, type_document, actif,
+                                                     
+            ^
+
+(venv) PS C:\Users\BENZEMA09\docgen\backend> 
+
+NB: voila mes dernière résultats

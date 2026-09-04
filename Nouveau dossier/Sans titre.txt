@@ -1,0 +1,123 @@
+(venv) PS C:\Users\BENZEMA09\docgen\backend> python .\audit_blocs_variables.py
+
+==============================================================================
+DETECTION DU SCHEMA
+==============================================================================
+Colonnes de templates : id, titre, contenu, type_document, user_id, created_at, categorie, nature_document, champs_formulaire, mentions_obligatoires_supplementaires, actif
+Colonne de contenu (templates) retenue : 'contenu'   
+Colonnes de blocs_reutilisables : id, nom, contenu, categorie, type_document, created_at, updated_at      
+Colonne de contenu (blocs) retenue : 'contenu'       
+Blocs en base : 13
+
+==============================================================================
+AUDIT DE 10 TEMPLATE(S)
+==============================================================================
+
+[26] Contrat de vente de biens  ->  4 anomalie(s)    
+     contenu : 5529 caracteres | champs_formulaire : 37 champ(s) (cle='nom') | blocs references : 6 (8 variable(s) portee(s) par ces blocs)
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : delai_amiable, delai_mise_en_demeure, delai_preavis_resiliation, duree_suspension_force_majeure
+             -> cas 'duree' : saisie exigee pour rien
+
+[27] Contrat de prestation de services  ->  9 anomalie(s)
+     contenu : 4520 caracteres | champs_formulaire : 47 champ(s) (cle='nom') | blocs references : 9 (13 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : preavis_reconduction
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : autorise_sous_traitance, delai_amiable, delai_mise_en_demeure, delai_preavis_non_reconduction, delai_preavis_resiliation, duree_mois, duree_reconduction, duree_suspension_force_majeure
+             -> cas 'duree' : saisie exigee pour rien
+
+[28] Contrat de sous-traitance  ->  11 anomalie(s)   
+     contenu : 4640 caracteres | champs_formulaire : 45 champ(s) (cle='nom') | blocs references : 9 (15 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : preavis_reconduction
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : clause_non_concurrence, delai_amiable, delai_mise_en_demeure, delai_preavis_non_reconduction, delai_preavis_resiliation, duree_mois, duree_reconduction, duree_suspension_force_majeure, partie_beneficiaire, partie_engagee
+             -> cas 'duree' : saisie exigee pour rien
+
+[29] Contrat de partenariat  ->  12 anomalie(s)      
+     contenu : 4535 caracteres | champs_formulaire : 36 champ(s) (cle='nom') | blocs references : 7 (7 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : preavis_reconduction
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : clause_exclusivite, clause_non_concurrence, delai_amiable, delai_mise_en_demeure, delai_preavis_non_reconduction, delai_preavis_resiliation, duree_mois, duree_reconduction, duree_suspension_force_majeure, partie_beneficiaire, partie_engagee
+             -> cas 'duree' : saisie exigee pour rien
+
+[30] Accord de non-divulgation (NDA)  ->  5 anomalie(s)
+     contenu : 6323 caracteres | champs_formulaire : 27 champ(s) (cle='nom') | blocs references : 4 (6 variable(s) portee(s) par ces blocs)
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : clause_non_concurrence, delai_amiable, duree_suspension_force_majeure, partie_beneficiaire, partie_engagee 
+             -> cas 'duree' : saisie exigee pour rien
+
+[31] Contrat de licence de logiciel  ->  4 anomalie(s)
+     contenu : 4722 caracteres | champs_formulaire : 26 champ(s) (cle='nom') | blocs references : 5 (3 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : duree, fonction_signataire_partie_2, nom_signataire_partie_2
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : duree_mois
+             -> cas 'duree' : saisie exigee pour rien
+     [INFO] placeholder(s) a syntaxe non standard (a verifier manuellement) : signature:signature_partie_1, signature:signature_partie_2
+
+[32] Bon de commande  ->  1 anomalie(s)
+     contenu : 1495 caracteres | champs_formulaire : 18 champ(s) (cle='nom') | blocs references : 0 (0 variable(s) portee(s) par ces blocs)
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : articles
+             -> cas 'duree' : saisie exigee pour rien
+     [INFO] placeholder(s) a syntaxe non standard (a verifier manuellement) : article.designation, article.prix_unitaire_ht, article.quantite, article.total_ht
+
+[33] Contrat de distribution  ->  6 anomalie(s)      
+     contenu : 4757 caracteres | champs_formulaire : 25 champ(s) (cle='nom') | blocs references : 6 (6 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : duree, fonction_signataire_partie_2, nom_signataire_partie_2
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : duree_mois, exclusivite_territoriale, non_concurrence_active
+             -> cas 'duree' : saisie exigee pour rien
+     [INFO] placeholder(s) a syntaxe non standard (a verifier manuellement) : signature:signature_partie_1, signature:signature_partie_2
+
+[34] Contrat d'agence commerciale  ->  6 anomalie(s) 
+     contenu : 4663 caracteres | champs_formulaire : 25 champ(s) (cle='nom') | blocs references : 6 (6 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : duree, fonction_signataire_partie_2, nom_signataire_partie_2
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : duree_mois, exclusivite_sectorielle, non_concurrence_active
+             -> cas 'duree' : saisie exigee pour rien
+     [INFO] placeholder(s) a syntaxe non standard (a verifier manuellement) : signature:signature_partie_1, signature:signature_partie_2
+
+[35] Contrat de franchise  ->  6 anomalie(s)
+     contenu : 5213 caracteres | champs_formulaire : 29 champ(s) (cle='nom') | blocs references : 6 (7 variable(s) portee(s) par ces blocs)
+     [GRAVE] variable(s) (template ou blocs) NON declaree(s) dans champs_formulaire : duree, fonction_signataire_partie_2, nom_signataire_partie_2
+             -> le formulaire ne les demandera jamais, le placeholder restera brut dans le document       
+     [ATTENTION] champ(s) de formulaire jamais utilise(s) dans le contenu ni dans les blocs references : approvisionnement_exclusif, duree_mois, exclusivite_territoriale
+             -> cas 'duree' : saisie exigee pour rien
+     [INFO] placeholder(s) a syntaxe non standard (a verifier manuellement) : signature:signature_partie_1, signature:signature_partie_2
+
+==============================================================================
+BIBLIOTHEQUE DE BLOCS
+==============================================================================
+
+--- Blocs jamais references par les templates audites ---
+  - clause_confidentialite  (categorie: contrat_commercial)
+  Normal si ces blocs servent aux lots non encore integres.
+
+--- Doublons probables (noms proches) ---
+  - 'clause_confidentialite' (non utilise)  <->  'confidentialite_renforcee' (utilise)
+  - 'clause_confidentialite' (non utilise)  <->  'confidentialite_standard' (utilise)
+  - 'confidentialite_renforcee' (utilise)  <->  'confidentialite_standard' (utilise)
+  - 'propriete_intellectuelle' (utilise)  <->  'propriete_intellectuelle_conjointe' (utilise)
+  A trancher : garder un seul nom canonique par clause.
+
+--- Coherence des categories de blocs ---
+    7 bloc(s) : clause_generale
+    5 bloc(s) : commun
+    1 bloc(s) : contrat_commercial
+
+==============================================================================
+RECAPITULATIF
+==============================================================================
+  id | champs | blocs | anomalies | titre
+------------------------------------------------------------------------------
+  26 |     37 |     6 |         4!| Contrat de vente de biens
+  27 |     47 |     9 |         9!| Contrat de prestation de services
+  28 |     45 |     9 |        11!| Contrat de sous-traitance
+  29 |     36 |     7 |        12!| Contrat de partenariat
+  30 |     27 |     4 |         5!| Accord de non-divulgation (NDA)
+  31 |     26 |     5 |         4!| Contrat de licence de logiciel
+  32 |     18 |     0 |         1!| Bon de commande  
+  33 |     25 |     6 |         6!| Contrat de distribution
+  34 |     25 |     6 |         6!| Contrat d'agence commerciale
+  35 |     29 |     6 |         6!| Contrat de franchise
+------------------------------------------------------------------------------
+Total anomalies : 64
+Corriger ces points avant d'integrer le lot suivant, sinon les memes erreurs seront reproduites par copie du patron.
+(venv) PS C:\Users\BENZEMA09\docgen\backend> 
