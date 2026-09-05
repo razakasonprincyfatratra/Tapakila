@@ -1,17 +1,17 @@
 {
-    "services": {
-      "frontend": {
-        "root": "frontend/",
-        "framework": "nextjs"
-      },
-      "backend": {
-        "root": "backend/",
-        "framework": "express",
-        "entrypoint": "src/index.ts"
-      }
+  "services": {
+    "frontend": {
+      "root": "frontend/",
+      "framework": "nextjs"
     },
-    "rewrites": [
-      { "source": "/api/(.*)", "destination": { "service": "backend" } },
-      { "source": "/(.*)", "destination": { "service": "frontend" } }
-    ]
-  }
+    "backend": {
+      "root": "backend/",
+      "framework": "express",
+      "entrypoint": "dist/index.js"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "backend" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
+}
