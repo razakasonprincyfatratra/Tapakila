@@ -63,7 +63,7 @@ export async function updateEvent(req: AuthRequest, res: Response) {
   try {
     if (!req.userId) return res.status(401).json({ error: "Non authentifié" });
 
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     if (!id) return res.status(400).json({ error: "Paramètre id manquant" });
 
     const event = await prisma.event.findUnique({ where: { id } });
@@ -123,7 +123,7 @@ export async function deleteEvent(req: AuthRequest, res: Response) {
   try {
     if (!req.userId) return res.status(401).json({ error: "Non authentifié" });
 
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     if (!id) return res.status(400).json({ error: "Paramètre id manquant" });
 
     const event = await prisma.event.findUnique({ where: { id } });
@@ -146,7 +146,7 @@ export async function publishEvent(req: AuthRequest, res: Response) {
   try {
     if (!req.userId) return res.status(401).json({ error: "Non authentifié" });
 
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     if (!id) return res.status(400).json({ error: "Paramètre id manquant" });
 
     const event = await prisma.event.findUnique({
@@ -210,7 +210,7 @@ export async function listEvents(req: Request, res: Response) {
 
 export async function getEvent(req: AuthRequest, res: Response) {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     if (!id) return res.status(400).json({ error: "Paramètre id manquant" });
 
     const event = await prisma.event.findUnique({

@@ -98,7 +98,7 @@ export async function approveApplication(req: AuthRequest, res: Response) {
   try {
     if (!req.userId) return res.status(401).json({ error: "Non authentifié" });
 
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     if (!id) return res.status(400).json({ error: "Paramètre id manquant" });
 
     const application = await prisma.organizerApplication.findUnique({ where: { id } });
@@ -131,7 +131,7 @@ export async function rejectApplication(req: AuthRequest, res: Response) {
   try {
     if (!req.userId) return res.status(401).json({ error: "Non authentifié" });
 
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     if (!id) return res.status(400).json({ error: "Paramètre id manquant" });
 
     const { rejectionReason } = req.body;
