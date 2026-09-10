@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && tsc",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && prisma generate && tsc && node -e \"if(!require('fs').existsSync('dist/index.js')){console.error('ERREUR: tsc n a rien emis dans dist/index.js. Verifier tsconfig.json (rootDir/outDir) et la version de typescript.');process.exit(1)}console.log('OK: dist/index.js genere avec succes')\"",
     "start": "node dist/index.js"
   },
   "keywords": [],
