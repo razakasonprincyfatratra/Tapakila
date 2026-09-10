@@ -1,17 +1,6 @@
 {
-  "services": {
-    "frontend": {
-      "root": "frontend/",
-      "framework": "nextjs"
-    },
-    "backend": {
-      "root": "backend/",
-      "framework": "express",
-      "entrypoint": "src/index.ts"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/(.*)", "destination": { "service": "frontend" } }
-  ]
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "cd frontend && npm install",
+  "framework": "nextjs"
 }
