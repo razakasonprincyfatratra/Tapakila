@@ -1,0 +1,1 @@
+DATABASE_URL=postgresqlpostgresdocgen_pass_2024@localhost5432tapakilaschema=public

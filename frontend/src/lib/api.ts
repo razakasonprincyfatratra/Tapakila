@@ -30,6 +30,27 @@ export interface OrganizerApplication {
   createdAt: string;
 }
 
+// ---------- Multi-day events (EventDay) ----------
+
+export type TicketAccessType = "SINGLE_DAY" | "MULTI_DAY" | "FULL_PASS";
+
+export interface EventDay {
+  id: string;
+  eventId: string;
+  date: string;
+  label: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  order: number;
+}
+
+export interface TicketTypeEventDay {
+  id: string;
+  ticketTypeId: string;
+  eventDayId: string;
+  eventDay: EventDay;
+}
+
 export interface TicketType {
   id: string;
   eventId: string;
@@ -43,6 +64,8 @@ export interface TicketType {
   salesEnd: string | null;
   isActive: boolean;
   order: number;
+  accessType: TicketAccessType;
+  eventDays?: TicketTypeEventDay[];
 }
 
 export interface Event {
@@ -272,6 +295,77 @@ export async function fetchRegionStats(): Promise<{ stats: RegionStat[] }> {
   return handleResponse<{ stats: RegionStat[] }>(res);
 }
 
+// ---------- Event days (festivals / événements multi-jours) ----------
+
+export interface CreateEventDayPayload {
+  date: string;
+  label?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+export async function createEventDay(
+  token: string,
+  eventId: string,
+  payload: CreateEventDayPayload
+): Promise<{ eventDay: EventDay }> {
+  const res = await fetch(`${API_URL}/api/events/${eventId}/days`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<{ eventDay: EventDay }>(res);
+}
+
+export async function listEventDays(
+  eventId: string,
+  token?: string
+): Promise<{ eventDays: EventDay[] }> {
+  const res = await fetch(`${API_URL}/api/events/${eventId}/days`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  return handleResponse<{ eventDays: EventDay[] }>(res);
+}
+
+export async function updateEventDay(
+  token: string,
+  eventId: string,
+  id: string,
+  payload: Partial<CreateEventDayPayload>
+): Promise<{ eventDay: EventDay }> {
+  const res = await fetch(`${API_URL}/api/events/${eventId}/days/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<{ eventDay: EventDay }>(res);
+}
+
+export async function deleteEventDay(
+  token: string,
+  eventId: string,
+  id: string
+): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/api/events/${eventId}/days/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
+export async function reorderEventDays(
+  token: string,
+  eventId: string,
+  order: { id: string; position: number }[]
+): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/api/events/${eventId}/days/reorder`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: JSON.stringify({ order }),
+  });
+  return handleResponse<{ message: string }>(res);
+}
+
 // ---------- Reservations ----------
 
 export interface Reservation {
@@ -349,6 +443,8 @@ export interface CreateTicketTypePayload {
   seatMapZone?: string;
   salesStart?: string;
   salesEnd?: string;
+  accessType?: TicketAccessType;
+  eventDayIds?: string[];
 }
 
 export async function createTicketType(

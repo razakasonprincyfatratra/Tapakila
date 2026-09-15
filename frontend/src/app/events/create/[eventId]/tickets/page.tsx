@@ -12,10 +12,33 @@ import {
   toggleTicketType,
   deleteTicketType,
   reorderTicketTypes,
+  listEventDays,
+  createEventDay,
+  updateEventDay,
+  deleteEventDay,
+  reorderEventDays,
   publishEvent,
   type Event,
   type TicketType,
+  type EventDay,
+  type TicketAccessType,
 } from "@/lib/api";
+
+const ACCESS_TYPE_OPTIONS: { value: TicketAccessType; label: string; hint: string }[] = [
+  { value: "SINGLE_DAY", label: "Journée unique", hint: "Valable pour un seul jour précis" },
+  { value: "MULTI_DAY", label: "Plusieurs jours", hint: "Valable pour une sélection de jours" },
+  { value: "FULL_PASS", label: "Pass complet", hint: "Valable pour tous les jours de l'événement" },
+];
+
+function formatDayLabel(day: EventDay): string {
+  const dateLabel = new Date(day.date).toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return day.label ? `${day.label} — ${dateLabel}` : dateLabel;
+}
 
 export default function ConfigureTicketsPage() {
   const router = useRouter();
@@ -25,8 +48,10 @@ export default function ConfigureTicketsPage() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [eventDays, setEventDays] = useState<EventDay[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ---- Formulaire type de billet ----
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -34,6 +59,8 @@ export default function ConfigureTicketsPage() {
   const [seatMapZone, setSeatMapZone] = useState("");
   const [salesStart, setSalesStart] = useState("");
   const [salesEnd, setSalesEnd] = useState("");
+  const [accessType, setAccessType] = useState<TicketAccessType>("SINGLE_DAY");
+  const [selectedDayIds, setSelectedDayIds] = useState<string[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,15 +68,28 @@ export default function ConfigureTicketsPage() {
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
 
+  // ---- Formulaire jour d'événement ----
+  const [dayDate, setDayDate] = useState("");
+  const [dayLabel, setDayLabel] = useState("");
+  const [dayStartTime, setDayStartTime] = useState("");
+  const [dayEndTime, setDayEndTime] = useState("");
+  const [editingDayId, setEditingDayId] = useState<string | null>(null);
+  const [dayError, setDayError] = useState<string | null>(null);
+  const [daySubmitting, setDaySubmitting] = useState(false);
+
+  const hasMultiDaySetup = eventDays.length > 0;
+
   async function loadData() {
     if (!token) return;
     try {
-      const [eventRes, ticketsRes] = await Promise.all([
+      const [eventRes, ticketsRes, daysRes] = await Promise.all([
         getEvent(eventId, token),
         listTicketTypes(eventId, token),
+        listEventDays(eventId, token),
       ]);
       setEvent(eventRes.event);
       setTicketTypes(ticketsRes.ticketTypes);
+      setEventDays(daysRes.eventDays);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de charger l'événement");
     } finally {
@@ -67,6 +107,8 @@ export default function ConfigureTicketsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, token, eventId]);
 
+  // ---------- Types de billets ----------
+
   function resetForm() {
     setName("");
     setDescription("");
@@ -75,6 +117,8 @@ export default function ConfigureTicketsPage() {
     setSeatMapZone("");
     setSalesStart("");
     setSalesEnd("");
+    setAccessType("SINGLE_DAY");
+    setSelectedDayIds([]);
     setEditingId(null);
   }
 
@@ -87,6 +131,14 @@ export default function ConfigureTicketsPage() {
     setSeatMapZone(ticket.seatMapZone ?? "");
     setSalesStart(ticket.salesStart ? ticket.salesStart.slice(0, 16) : "");
     setSalesEnd(ticket.salesEnd ? ticket.salesEnd.slice(0, 16) : "");
+    setAccessType(ticket.accessType ?? "SINGLE_DAY");
+    setSelectedDayIds(ticket.eventDays?.map((link) => link.eventDayId) ?? []);
+  }
+
+  function toggleDaySelection(dayId: string) {
+    setSelectedDayIds((prev) =>
+      prev.includes(dayId) ? prev.filter((id) => id !== dayId) : [...prev, dayId]
+    );
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -94,6 +146,19 @@ export default function ConfigureTicketsPage() {
     setError(null);
 
     if (!token) return;
+
+    // L'accès par jour ne s'applique que si l'événement a des jours définis.
+    // Sinon on garde le comportement classique (aucun accessType/eventDayIds envoyé).
+    if (hasMultiDaySetup) {
+      if (accessType === "SINGLE_DAY" && selectedDayIds.length !== 1) {
+        setError("Sélectionne exactement un jour pour un billet « Journée unique ».");
+        return;
+      }
+      if (accessType === "MULTI_DAY" && selectedDayIds.length === 0) {
+        setError("Sélectionne au moins un jour pour un billet « Plusieurs jours ».");
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -105,6 +170,10 @@ export default function ConfigureTicketsPage() {
         seatMapZone: seatMapZone || undefined,
         salesStart: salesStart ? new Date(salesStart).toISOString() : undefined,
         salesEnd: salesEnd ? new Date(salesEnd).toISOString() : undefined,
+        ...(hasMultiDaySetup && {
+          accessType,
+          eventDayIds: accessType === "FULL_PASS" ? undefined : selectedDayIds,
+        }),
       };
 
       if (editingId) {
@@ -161,6 +230,104 @@ export default function ConfigureTicketsPage() {
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
+      await loadData();
+    }
+  }
+
+  function accessSummary(ticket: TicketType): string | null {
+    if (!hasMultiDaySetup) return null;
+
+    const type = ticket.accessType ?? "SINGLE_DAY";
+    if (type === "FULL_PASS") return "Pass complet · tous les jours";
+
+    const days = ticket.eventDays?.map((link) => formatDayLabel(link.eventDay)) ?? [];
+    if (days.length === 0) return null;
+    return type === "SINGLE_DAY" ? `Jour : ${days[0]}` : `Jours : ${days.join(", ")}`;
+  }
+
+  // ---------- Jours de l'événement ----------
+
+  function resetDayForm() {
+    setDayDate("");
+    setDayLabel("");
+    setDayStartTime("");
+    setDayEndTime("");
+    setEditingDayId(null);
+    setDayError(null);
+  }
+
+  function startEditDay(day: EventDay) {
+    setEditingDayId(day.id);
+    setDayDate(day.date.slice(0, 10));
+    setDayLabel(day.label ?? "");
+    setDayStartTime(day.startTime ? day.startTime.slice(0, 16) : "");
+    setDayEndTime(day.endTime ? day.endTime.slice(0, 16) : "");
+    setDayError(null);
+  }
+
+  async function handleDaySubmit(e: FormEvent) {
+    e.preventDefault();
+    setDayError(null);
+
+    if (!token) return;
+    if (!dayDate) {
+      setDayError("La date est requise");
+      return;
+    }
+
+    setDaySubmitting(true);
+    try {
+      const payload = {
+        date: dayDate,
+        label: dayLabel || undefined,
+        startTime: dayStartTime ? new Date(dayStartTime).toISOString() : undefined,
+        endTime: dayEndTime ? new Date(dayEndTime).toISOString() : undefined,
+      };
+
+      if (editingDayId) {
+        await updateEventDay(token, eventId, editingDayId, payload);
+      } else {
+        await createEventDay(token, eventId, payload);
+      }
+
+      resetDayForm();
+      await loadData();
+    } catch (err) {
+      setDayError(err instanceof Error ? err.message : "Une erreur est survenue");
+    } finally {
+      setDaySubmitting(false);
+    }
+  }
+
+  async function handleDeleteDay(id: string) {
+    if (!token) return;
+    if (!confirm("Supprimer cette journée ?")) return;
+    try {
+      await deleteEventDay(token, eventId, id);
+      await loadData();
+    } catch (err) {
+      setDayError(err instanceof Error ? err.message : "Une erreur est survenue");
+    }
+  }
+
+  async function handleMoveDay(index: number, direction: -1 | 1) {
+    if (!token) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= eventDays.length) return;
+
+    const reordered = [...eventDays];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+    setEventDays(reordered);
+
+    try {
+      await reorderEventDays(
+        token,
+        eventId,
+        reordered.map((d, i) => ({ id: d.id, position: i }))
+      );
+    } catch (err) {
+      setDayError(err instanceof Error ? err.message : "Une erreur est survenue");
       await loadData();
     }
   }
@@ -249,6 +416,154 @@ export default function ConfigureTicketsPage() {
           <p className="text-gray-400 text-sm mt-3">{event.title}</p>
         </div>
 
+        {/* ---------- Jours de l'événement (festival multi-jours) ---------- */}
+        <div className="bg-[#13131F] border border-white/10 rounded-2xl p-6 mb-6">
+          <h2 className="text-white text-sm font-semibold mb-1">Jours de l'événement</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Facultatif — utile pour un festival ou un événement sur plusieurs jours. Ajoute chaque
+            journée pour pouvoir ensuite créer des billets « journée unique », « plusieurs jours »
+            ou « pass complet ».
+          </p>
+
+          {eventDays.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {eventDays.map((day, index) => (
+                <div
+                  key={day.id}
+                  className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-lg px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-white text-sm truncate">{formatDayLabel(day)}</p>
+                    {(day.startTime || day.endTime) && (
+                      <p className="text-xs text-gray-500">
+                        {day.startTime &&
+                          new Date(day.startTime).toLocaleTimeString("fr-FR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        {day.startTime && day.endTime ? " – " : ""}
+                        {day.endTime &&
+                          new Date(day.endTime).toLocaleTimeString("fr-FR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveDay(index, -1)}
+                      disabled={index === 0}
+                      className="text-gray-400 hover:text-white disabled:opacity-30 text-xs px-1"
+                      title="Monter"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveDay(index, 1)}
+                      disabled={index === eventDays.length - 1}
+                      className="text-gray-400 hover:text-white disabled:opacity-30 text-xs px-1"
+                      title="Descendre"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startEditDay(day)}
+                      className="text-purple-400 hover:text-purple-300 text-xs px-2"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDay(day.id)}
+                      className="text-red-400 hover:text-red-300 text-xs px-1"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleDaySubmit} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Date</label>
+                <input
+                  type="date"
+                  required
+                  value={dayDate}
+                  onChange={(e) => setDayDate(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Libellé — optionnel</label>
+                <input
+                  type="text"
+                  value={dayLabel}
+                  onChange={(e) => setDayLabel(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Jour 1 - Ouverture"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Heure de début — optionnel</label>
+                <input
+                  type="datetime-local"
+                  value={dayStartTime}
+                  onChange={(e) => setDayStartTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Heure de fin — optionnel</label>
+                <input
+                  type="datetime-local"
+                  value={dayEndTime}
+                  onChange={(e) => setDayEndTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            {dayError && (
+              <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {dayError}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              {editingDayId && (
+                <button
+                  type="button"
+                  onClick={resetDayForm}
+                  className="flex-1 bg-white/5 border border-white/10 text-white text-sm py-2 rounded-lg hover:bg-white/10 transition"
+                >
+                  Annuler
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={daySubmitting}
+                className="flex-1 bg-white/10 border border-white/10 text-white text-sm font-medium py-2 rounded-lg hover:bg-white/15 transition disabled:opacity-50"
+              >
+                {daySubmitting
+                  ? "Enregistrement..."
+                  : editingDayId
+                    ? "Mettre à jour la journée"
+                    : "Ajouter une journée"}
+              </button>
+            </div>
+          </form>
+        </div>
+
         {ticketTypes.length > 0 && (
           <div className="space-y-3 mb-6">
             {ticketTypes.map((ticket, index) => (
@@ -275,6 +590,9 @@ export default function ConfigureTicketsPage() {
                     {ticket.totalSeats} places
                     {ticket.seatMapZone ? ` · Zone ${ticket.seatMapZone}` : ""}
                   </p>
+                  {accessSummary(ticket) && (
+                    <p className="text-xs text-purple-400 mt-1">{accessSummary(ticket)}</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -415,6 +733,57 @@ export default function ConfigureTicketsPage() {
                 />
               </div>
             </div>
+
+            {hasMultiDaySetup && (
+              <div className="border-t border-white/10 pt-4">
+                <label className="block text-xs text-gray-400 mb-2">Accès</label>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {ACCESS_TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setAccessType(option.value)}
+                      className={`text-left px-3 py-2 rounded-lg border text-xs transition ${
+                        accessType === option.value
+                          ? "border-purple-500 bg-purple-500/10 text-white"
+                          : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20"
+                      }`}
+                    >
+                      <span className="block font-medium">{option.label}</span>
+                      <span className="block text-[11px] text-gray-500 mt-0.5">{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {accessType !== "FULL_PASS" && (
+                  <div className="flex flex-wrap gap-2">
+                    {eventDays.map((day) => {
+                      const isSelected = selectedDayIds.includes(day.id);
+                      return (
+                        <button
+                          key={day.id}
+                          type="button"
+                          onClick={() => {
+                            if (accessType === "SINGLE_DAY") {
+                              setSelectedDayIds([day.id]);
+                            } else {
+                              toggleDaySelection(day.id);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                            isSelected
+                              ? "border-purple-500 bg-purple-500/15 text-white"
+                              : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20"
+                          }`}
+                        >
+                          {formatDayLabel(day)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">

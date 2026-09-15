@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-import { requireRole } from "../middleware/role.middleware.js";
 import {
   updateTicketType,
   toggleTicketType,
@@ -8,10 +7,14 @@ import {
 } from "../controllers/ticketType.controller.js";
 
 // Monté sur /api/ticket-types dans index.ts
+//
+// Tout utilisateur authentifié peut modifier/désactiver/supprimer les types
+// de billets de ses propres événements ; la vérification de propriété se
+// fait dans le contrôleur.
 const router = Router();
 
-router.patch("/:id", authMiddleware, requireRole("ORGANIZER", "ADMIN"), updateTicketType);
-router.patch("/:id/toggle", authMiddleware, requireRole("ORGANIZER", "ADMIN"), toggleTicketType);
-router.delete("/:id", authMiddleware, requireRole("ORGANIZER", "ADMIN"), deleteTicketType);
+router.patch("/:id", authMiddleware, updateTicketType);
+router.patch("/:id/toggle", authMiddleware, toggleTicketType);
+router.delete("/:id", authMiddleware, deleteTicketType);
 
 export default router;

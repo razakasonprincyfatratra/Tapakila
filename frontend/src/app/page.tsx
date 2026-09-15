@@ -62,19 +62,15 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                {(user.role === "ORGANIZER" || user.role === "ADMIN") && (
-                  <Link
-                    href="/events/create"
-                    className="text-sm text-white bg-white/10 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/15 transition"
-                  >
-                    Créer un événement
-                  </Link>
-                )}
-                {user.role === "PARTICIPANT" && (
-                  <Link href="/organizer/apply" className="text-sm text-gray-400 hover:text-white transition">
-                    Devenir organisateur
-                  </Link>
-                )}
+                <Link
+                  href="/events/create"
+                  className="text-sm text-white bg-white/10 border border-white/10 px-4 py-2 rounded-lg hover:bg-white/15 transition"
+                >
+                  Créer un événement
+                </Link>
+                <Link href="/events/mine" className="text-sm text-gray-400 hover:text-white transition">
+                  Mes événements
+                </Link>
                 <Link href="/tickets" className="text-sm text-gray-400 hover:text-white transition">
                   Mes billets
                 </Link>

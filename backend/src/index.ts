@@ -3,8 +3,8 @@ import cors from "cors";
 import "dotenv/config";
 import { prisma } from "./lib/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
-import organizerRoutes from "./routes/organizer.routes.js";
 import eventRoutes from "./routes/event.routes.js";
+import eventDayRoutes from "./routes/eventDay.routes.js";
 import ticketTypeRoutes from "./routes/ticketType.routes.js";
 import ticketTypeItemRoutes from "./routes/ticketTypeItem.routes.js";
 import reservationRoutes from "./routes/reservation.routes.js";
@@ -26,8 +26,8 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/organizer", organizerRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/events/:eventId/days", eventDayRoutes);
 app.use("/api/events/:eventId/ticket-types", ticketTypeRoutes);
 app.use("/api/ticket-types", ticketTypeItemRoutes);
 app.use("/api/reservations", reservationRoutes);

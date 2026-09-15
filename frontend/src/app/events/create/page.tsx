@@ -39,9 +39,8 @@ export default function CreateEventPage() {
       router.push("/auth");
       return;
     }
-    if (user.role !== "ORGANIZER" && user.role !== "ADMIN") {
-      router.push("/organizer/apply");
-    }
+    // Tout utilisateur connecté peut créer un événement — aucune demande
+    // d'approbation préalable n'est requise.
   }, [authLoading, user, token, router]);
 
   async function handleSubmit(e: FormEvent) {

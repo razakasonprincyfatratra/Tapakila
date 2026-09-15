@@ -282,12 +282,18 @@ export async function listEventReservations(req: AuthRequest, res: Response) {
  *   même si la requête n'arrive au serveur qu'après reconnexion.
  * - Rejouer le même scan (ex: retry réseau) ne casse rien : la réponse indique
  *   simplement `alreadyUsed: true` avec l'horodatage d'origine, sans erreur bloquante.
+ *
+ * Événements multi-jours (event.eventDays non vide) :
+ * - `eventDayId` (optionnel pour SINGLE_DAY, requis pour MULTI_DAY/FULL_PASS) précise
+ *   la journée scannée. Le check-in est alors enregistré par journée dans la table
+ *   CheckIn (une ligne par jour effectivement scanné), et non plus sur
+ *   reservation.checkedInAt qui reste réservé aux événements mono-jour.
  */
 export async function checkInReservation(req: AuthRequest, res: Response) {
   try {
     if (!req.userId) return res.status(401).json({ error: "Non authentifié" });
 
-    const { code, scannedAt } = req.body;
+    const { code, scannedAt, eventDayId } = req.body;
 
     if (!code) {
       return res.status(400).json({ error: "Code (QR ou code de secours) manquant" });
@@ -295,7 +301,10 @@ export async function checkInReservation(req: AuthRequest, res: Response) {
 
     const reservation = await prisma.reservation.findFirst({
       where: { OR: [{ qrCode: code }, { backupCode: code }] },
-      include: { event: true },
+      include: {
+        event: { include: { eventDays: true } },
+        ticketType: { include: { eventDays: { include: { eventDay: true } } } },
+      },
     });
 
     if (!reservation) {
@@ -310,23 +319,89 @@ export async function checkInReservation(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: "Ce billet n'est pas confirmé (paiement non finalisé)" });
     }
 
-    if (reservation.checkedInAt) {
+    const eventHasDays = reservation.event.eventDays.length > 0;
+
+    // ---------- Événement simple (mono-jour, pas de Module 6) ----------
+    // Comportement historique inchangé, comme le prévoit le schéma.
+    if (!eventHasDays) {
+      if (reservation.checkedInAt) {
+        return res.status(200).json({
+          alreadyUsed: true,
+          checkedInAt: reservation.checkedInAt,
+          message: `Billet déjà utilisé le ${reservation.checkedInAt.toLocaleString("fr-FR")}`,
+        });
+      }
+
+      const updated = await prisma.reservation.update({
+        where: { id: reservation.id },
+        data: {
+          checkedInAt: scannedAt ? new Date(scannedAt) : new Date(),
+          checkedInById: req.userId,
+        },
+      });
+
+      return res.json({ alreadyUsed: false, reservation: updated });
+    }
+
+    // ---------- Événement multi-jours : check-in par journée (table CheckIn) ----------
+    const accessType = reservation.ticketType.accessType;
+    const linkedDayIds = reservation.ticketType.eventDays.map((link) => link.eventDayId);
+
+    let targetDayId: string;
+
+    if (accessType === "SINGLE_DAY") {
+      if (linkedDayIds.length !== 1) {
+        return res.status(500).json({ error: "Configuration du billet invalide (journée manquante)" });
+      }
+      const onlyDayId = linkedDayIds[0]!;
+      if (eventDayId && eventDayId !== onlyDayId) {
+        return res.status(400).json({ error: "Ce billet n'est pas valable pour cette journée" });
+      }
+      targetDayId = onlyDayId;
+    } else {
+      // MULTI_DAY ou FULL_PASS : la journée scannée doit être précisée explicitement
+      if (!eventDayId) {
+        return res.status(400).json({ error: "eventDayId est requis pour ce type de billet" });
+      }
+
+      const belongsToEvent = reservation.event.eventDays.some((day) => day.id === eventDayId);
+      if (!belongsToEvent) {
+        return res.status(400).json({ error: "Cette journée n'appartient pas à cet événement" });
+      }
+
+      if (accessType === "MULTI_DAY" && !linkedDayIds.includes(eventDayId)) {
+        return res.status(400).json({ error: "Ce billet n'est pas valable pour cette journée" });
+      }
+
+      // FULL_PASS : valable pour n'importe quelle journée de l'événement, rien de plus à vérifier
+      targetDayId = eventDayId;
+    }
+
+    const existingCheckIn = await prisma.checkIn.findUnique({
+      where: {
+        reservationId_eventDayId: { reservationId: reservation.id, eventDayId: targetDayId },
+      },
+    });
+
+    if (existingCheckIn) {
       return res.status(200).json({
         alreadyUsed: true,
-        checkedInAt: reservation.checkedInAt,
-        message: `Billet déjà utilisé le ${reservation.checkedInAt.toLocaleString("fr-FR")}`,
+        checkedInAt: existingCheckIn.checkedInAt,
+        eventDayId: targetDayId,
+        message: `Billet déjà utilisé pour cette journée le ${existingCheckIn.checkedInAt.toLocaleString("fr-FR")}`,
       });
     }
 
-    const updated = await prisma.reservation.update({
-      where: { id: reservation.id },
+    const checkIn = await prisma.checkIn.create({
       data: {
+        reservationId: reservation.id,
+        eventDayId: targetDayId,
         checkedInAt: scannedAt ? new Date(scannedAt) : new Date(),
         checkedInById: req.userId,
       },
     });
 
-    return res.json({ alreadyUsed: false, reservation: updated });
+    return res.json({ alreadyUsed: false, checkIn });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Erreur serveur lors du check-in" });
