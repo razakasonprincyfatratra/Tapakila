@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { TicketQRCode } from "@/components/TicketQRCode";
+import { ReservationTickets } from "@/components/ReservationTickets";
 import { useAuth } from "@/context/AuthContext";
 import {
   listMyReservations,
@@ -141,12 +141,6 @@ export default function MyTicketsPage() {
                     {reservation.ticketType?.name} × {reservation.quantity} —{" "}
                     {Number(reservation.totalAmount).toLocaleString("fr-FR")} Ar
                   </p>
-                  {reservation.checkedInAt && (
-                    <p className="text-xs text-green-400 mt-1">
-                      Utilisé le{" "}
-                      {new Date(reservation.checkedInAt).toLocaleString("fr-FR")}
-                    </p>
-                  )}
                 </div>
 
                 {reservation.status === "PENDING" && (
@@ -169,17 +163,16 @@ export default function MyTicketsPage() {
                 )}
               </div>
 
-              {reservation.status === "CONFIRMED" && reservation.qrCode && (
-                <div className="mt-4 pt-4 border-t border-white/10 flex flex-col items-center">
-                  <div className="bg-white p-3 rounded-xl">
-                    <TicketQRCode value={reservation.qrCode} size={140} />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-3">Code de secours (si pas de réseau) :</p>
-                  <p className="text-white font-mono text-sm tracking-widest mt-1">
-                    {reservation.backupCode}
-                  </p>
-                </div>
-              )}
+              {reservation.status === "CONFIRMED" &&
+                token &&
+                (reservation._count?.tickets ?? 0) > 0 && (
+                  <ReservationTickets
+                    token={token}
+                    reservationId={reservation.id}
+                    total={reservation._count?.tickets ?? reservation.quantity}
+                    eventTitle={reservation.event?.title}
+                  />
+                )}
             </div>
           ))}
         </div>

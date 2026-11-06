@@ -376,11 +376,14 @@ export interface Reservation {
   quantity: number;
   totalAmount: string;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
+  /** LEGACY : ancien QR unique par réservation. Les billets sont désormais dans ReservationTicket. */
   qrCode: string | null;
   backupCode: string | null;
   paymentRef: string | null;
   checkedInAt: string | null;
   createdAt: string;
+  /** Nombre de billets individuels générés (un QR code chacun) une fois la réservation confirmée. */
+  _count?: { tickets: number };
   event?: {
     id: string;
     title: string;
@@ -393,6 +396,39 @@ export interface Reservation {
     name: string;
     price: string;
   };
+}
+
+export type TicketStatus = "PENDING" | "VALID" | "USED" | "CANCELLED" | "REFUNDED" | "EXPIRED";
+
+/** Billet individuel anonyme : un QR code unique par place réservée. */
+export interface ReservationTicket {
+  id: string;
+  number: number;
+  qrCode: string;
+  backupCode: string;
+  status: TicketStatus;
+  usedAt: string | null;
+}
+
+export interface ReservationTicketsPage {
+  tickets: ReservationTicket[];
+  total: number;
+  usedCount: number;
+  page: number;
+  limit: number;
+}
+
+export async function listReservationTickets(
+  token: string,
+  reservationId: string,
+  page = 1,
+  limit = 50
+): Promise<ReservationTicketsPage> {
+  const res = await fetch(
+    `${API_URL}/api/reservations/${reservationId}/tickets?page=${page}&limit=${limit}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return handleResponse<ReservationTicketsPage>(res);
 }
 
 export async function createReservation(

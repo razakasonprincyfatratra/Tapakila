@@ -25,6 +25,27 @@ enum ReservationStatus {
   CANCELLED
 }
 
+/// Statut d'un billet individuel (un billet = une place = un QR code).
+enum TicketStatus {
+  PENDING    // émission en attente
+  VALID      // utilisable
+  USED       // déjà scanné
+  CANCELLED  // annulé (réservation ou événement annulé)
+  REFUNDED   // remboursé
+  EXPIRED    // événement terminé
+}
+
+/// Résultat d'un scan, journalisé dans Scan.
+enum ScanResult {
+  VALID
+  ALREADY_USED
+  INVALID
+  CANCELLED
+  REFUNDED
+  EXPIRED
+  WRONG_EVENT_DAY
+}
+
 enum OrganizerApplicationStatus {
   PENDING
   APPROVED
@@ -57,6 +78,8 @@ model User {
   reviewedApplications    OrganizerApplication[]  @relation("Reviewer")
   checkedInReservations   Reservation[]           @relation("CheckedInReservations")
   checkedInDays           CheckIn[]               @relation("CheckedInDays")
+  usedTickets             Ticket[]                @relation("UsedTickets")
+  scans                   Scan[]                  @relation("ScanAgent")
 }
 
 model OrganizerApplication {
@@ -108,6 +131,8 @@ model Event {
   reservations    Reservation[]
   comments        Comment[]
   eventDays       EventDay[]
+  tickets         Ticket[]
+  scans           Scan[]
 
   @@index([status])
   @@index([category])
@@ -181,6 +206,8 @@ model Reservation {
   quantity       Int
   totalAmount    Decimal           @db.Decimal(10, 2)
   status         ReservationStatus @default(PENDING)
+  /// LEGACY : ancien QR unique par réservation. Les nouvelles réservations
+  /// n'utilisent plus ces champs : un QR par billet est généré dans Ticket.
   qrCode         String?           @unique
   backupCode     String?           @unique
   paymentRef     String?
@@ -194,8 +221,56 @@ model Reservation {
   // ci-dessus reste la seule source de vérité et checkIns restera vide.
   checkIns       CheckIn[]
 
+  /// Un billet par place réservée : quantity = 3 => 3 Ticket, 3 QR codes uniques.
+  tickets        Ticket[]
+
   @@index([qrCode])
   @@index([backupCode])
+}
+
+/// Billet individuel anonyme (aucun nom requis). Accès LIBRE : toute personne
+/// présentant un QR code valide peut entrer. Le QR ne contient qu'un token
+/// aléatoire, jamais de donnée personnelle.
+model Ticket {
+  id             String        @id @default(uuid())
+  reservationId  String
+  reservation    Reservation   @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  eventId        String
+  event          Event         @relation(fields: [eventId], references: [id])
+  number         Int           // 1..quantity, position du billet dans la réservation
+  qrCode         String        @unique
+  backupCode     String        @unique
+  status         TicketStatus  @default(VALID)
+  usedAt         DateTime?
+  usedById       String?
+  usedBy         User?         @relation("UsedTickets", fields: [usedById], references: [id])
+  createdAt      DateTime      @default(now())
+
+  checkIns       CheckIn[]
+  scans          Scan[]
+
+  @@unique([reservationId, number])
+  @@index([eventId, status])
+  @@index([reservationId])
+}
+
+/// Historique de chaque scan (valide ou refusé) : billet, événement, agent, heure.
+/// ticketId / eventId sont null quand le code scanné ne correspond à aucun billet.
+model Scan {
+  id         String      @id @default(uuid())
+  ticketId   String?
+  ticket     Ticket?     @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  eventId    String?
+  event      Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  agentId    String
+  agent      User        @relation("ScanAgent", fields: [agentId], references: [id])
+  code       String?     // code brut scanné (tronqué), utile pour les codes invalides
+  result     ScanResult
+  scannedAt  DateTime
+  createdAt  DateTime    @default(now())
+
+  @@index([ticketId])
+  @@index([eventId, scannedAt])
 }
 
 /// Check-in d'une réservation pour un jour précis d'un festival multi-jours.
@@ -205,13 +280,20 @@ model CheckIn {
   id             String       @id @default(uuid())
   reservationId  String
   reservation    Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  /// Billet scanné. Null uniquement pour les anciens check-ins (avant les billets individuels).
+  ticketId       String?
+  ticket         Ticket?      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   eventDayId     String
   eventDay       EventDay     @relation(fields: [eventDayId], references: [id], onDelete: Cascade)
   checkedInAt    DateTime     @default(now())
   checkedInById  String?
   checkedInBy    User?        @relation("CheckedInDays", fields: [checkedInById], references: [id])
 
-  @@unique([reservationId, eventDayId])
+  // Un billet ne peut être badgé qu'une fois par jour. (L'ancienne contrainte
+  // unique [reservationId, eventDayId] est retirée : une réservation compte
+  // désormais plusieurs billets, chacun badgé séparément.)
+  @@unique([ticketId, eventDayId])
+  @@index([reservationId])
   @@index([eventDayId])
 }
 
