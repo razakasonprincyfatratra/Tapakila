@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import Navbar from "@/components/Navbar";
+import EventCommunity from "@/components/EventCommunity";
 import { getEvent, createReservation, confirmReservation, type Event, type Reservation } from "@/lib/api";
 
 export default function EventDetailPage() {
@@ -102,15 +104,7 @@ export default function EventDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0B14]">
-      <header className="border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <Link href="/" className="text-2xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 bg-clip-text text-transparent">
-              TAPAKILA
-            </span>
-          </Link>
-        </div>
-      </header>
+      <Navbar />
 
       <div className="max-w-4xl mx-auto px-4 py-10">
         <Link href="/" className="text-sm text-gray-500 hover:text-gray-300 transition">
@@ -236,6 +230,9 @@ export default function EventDetailPage() {
             </div>
           ))}
         </div>
+
+        {/* Réactions et commentaires */}
+        <EventCommunity eventId={eventId} />
       </div>
     </div>
   );

@@ -30,6 +30,7 @@ interface AuthContextValue {
   loginGoogle: (idToken: string) => Promise<void>;
   loginFacebook: (accessToken: string) => Promise<void>;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -96,9 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   }
 
+  function updateUser(updated: User) {
+    setUser(updated);
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, register, login, loginGoogle, loginFacebook, logout }}
+      value={{ user, token, loading, register, login, loginGoogle, loginFacebook, logout, updateUser }}
     >
       {children}
     </AuthContext.Provider>

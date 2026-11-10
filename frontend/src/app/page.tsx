@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Navbar from "../components/Navbar";
 
 /* -------------------------------------------------------------------------- */
 /*  Configuration                                                             */
@@ -88,7 +90,7 @@ function normalizeEvent(raw: unknown): EventItem | null {
     category: str(r["category"]),
     date: str(r["startDate"]) ?? str(r["date"]),
     location: str(r["location"]) ?? str(r["venue"]) ?? str(r["city"]),
-    imageUrl: str(r["imageUrl"]) ?? str(r["image"]) ?? str(r["coverImage"]),
+    imageUrl: str(r["coverImageUrl"]) ?? str(r["imageUrl"]) ?? str(r["image"]),
     minPrice,
   };
 }
@@ -127,7 +129,6 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("Tous");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const loadEvents = useCallback(async () => {
     setState("loading");
@@ -163,59 +164,21 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#0b0618] text-white">
-      {/* ------------------------------ Navigation ------------------------------ */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0618]/85 backdrop-blur">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link href="/" className="text-xl font-extrabold tracking-tight">
-            <span className="text-fuchsia-400">Tapa</span>kila
-          </Link>
-
-          <ul className="hidden items-center gap-6 text-sm text-white/80 md:flex">
-            <li><a href="#evenements" className="hover:text-white">Événements</a></li>
-            <li><a href="#categories" className="hover:text-white">Catégories</a></li>
-            <li><a href="#organisateurs" className="hover:text-white">Organisateurs</a></li>
-            <li><a href="#faq" className="hover:text-white">FAQ</a></li>
-          </ul>
-
-          <div className="hidden items-center gap-3 md:flex">
-            <Link href="/auth" className="rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 py-2 text-sm font-semibold hover:opacity-90">
-              Se connecter
-            </Link>
-          </div>
-
-          <button
-            type="button"
-            aria-label="Ouvrir le menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-            className="rounded-lg border border-white/20 px-3 py-2 text-sm md:hidden"
-          >
-            {menuOpen ? "✕" : "☰"}
-          </button>
-        </nav>
-
-        {menuOpen && (
-          <div className="space-y-1 border-t border-white/10 px-4 py-3 text-sm md:hidden">
-            {[
-              ["#evenements", "Événements"],
-              ["#categories", "Catégories"],
-              ["#organisateurs", "Organisateurs"],
-              ["#faq", "FAQ"],
-            ].map(([href, label]) => (
-              <a key={href} href={href} onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-white/10">
-                {label}
-              </a>
-            ))}
-            <Link href="/auth" className="mt-2 block rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-4 py-2 text-center font-semibold">
-              Se connecter
-            </Link>
-          </div>
-        )}
-      </header>
+      <Navbar />
 
       {/* --------------------------------- Hero --------------------------------- */}
       <section className="relative overflow-hidden">
-        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(192,38,211,0.45),_transparent_55%),radial-gradient(ellipse_at_bottom_left,_rgba(109,40,217,0.5),_transparent_55%)]" />
+        <Image
+          src="/images/im.webp"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        {/* Voile sombre pour garder le texte lisible */}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-[#0b0618]/90 via-[#0b0618]/60 to-[#0b0618]/20" />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0b0618] to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-28">
           <h1 className="max-w-2xl text-4xl font-extrabold leading-tight md:text-6xl">
             Toutes vos expériences commencent <span className="text-fuchsia-400">ici.</span>
@@ -248,7 +211,7 @@ export default function HomePage() {
             <button type="button" onClick={goToEvents} className="rounded-full bg-violet-600 px-6 py-3 font-semibold hover:bg-violet-500">
               Découvrir les événements →
             </button>
-            <Link href="/organizer/apply" className="rounded-full border border-white/40 px-6 py-3 text-center font-semibold hover:bg-white/10">
+            <Link href="/events/create" className="rounded-full border border-white/40 px-6 py-3 text-center font-semibold hover:bg-white/10">
               Organiser un événement
             </Link>
           </div>
@@ -317,7 +280,7 @@ export default function HomePage() {
               <p className="mx-auto mt-2 max-w-md text-white/75">
                 Notre communauté d&apos;organisateurs prépare de nouvelles expériences. Revenez bientôt pour découvrir les prochains rendez-vous.
               </p>
-              <Link href="/organizer/apply" className="mt-6 inline-block rounded-full border border-white/40 px-6 py-2.5 text-sm font-semibold hover:bg-white/10">
+              <Link href="/events/create" className="mt-6 inline-block rounded-full border border-white/40 px-6 py-2.5 text-sm font-semibold hover:bg-white/10">
                 Vous organisez un événement ? Publiez-le ici
               </Link>
             </div>
@@ -376,7 +339,7 @@ export default function HomePage() {
               <li>✔ Suivez vos réservations et vos ventes</li>
             </ul>
           </div>
-          <Link href="/organizer/apply" className="rounded-full bg-white px-6 py-3 font-semibold text-violet-800 hover:bg-white/90">
+          <Link href="/events/create" className="rounded-full bg-white px-6 py-3 font-semibold text-violet-800 hover:bg-white/90">
             Devenir organisateur →
           </Link>
         </div>

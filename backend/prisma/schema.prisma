@@ -12,6 +12,11 @@ enum Role {
   ADMIN
 }
 
+enum ReactionType {
+  LIKE
+  INTERESTED
+}
+
 enum EventStatus {
   DRAFT
   PUBLISHED
@@ -68,12 +73,16 @@ model User {
   googleId      String?       @unique
   facebookId    String?       @unique
   avatarUrl     String?
+  phone         String?
+  city          String?
+  birthDate     DateTime?     @db.Date
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   events                  Event[]                 @relation("OrganizerEvents")
   reservations            Reservation[]
   comments                Comment[]
+  eventReactions          EventReaction[]
   organizerApplications   OrganizerApplication[]  @relation("Applicant")
   reviewedApplications    OrganizerApplication[]  @relation("Reviewer")
   checkedInReservations   Reservation[]           @relation("CheckedInReservations")
@@ -130,6 +139,7 @@ model Event {
   ticketTypes     TicketType[]
   reservations    Reservation[]
   comments        Comment[]
+  reactions       EventReaction[]
   eventDays       EventDay[]
   tickets         Ticket[]
   scans           Scan[]
@@ -306,4 +316,21 @@ model Comment {
   content     String
   rating      Int?
   createdAt   DateTime  @default(now())
+
+  @@index([eventId, createdAt])
+}
+
+/// Réaction d'un utilisateur à un événement (J'aime / Intéressé).
+/// Un utilisateur peut avoir les deux types, mais une seule fois chacun.
+model EventReaction {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, eventId, type])
+  @@index([eventId])
 }
